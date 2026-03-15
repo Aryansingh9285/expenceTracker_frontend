@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [category, setCategory] = useState("");
   const [type, setType] = useState("expense");
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -97,6 +98,10 @@ const loadTransactions = async () => {
     setType(transaction.type);
     setError("");
     setSuccessMessage("");
+    
+    // Scroll to edit form
+    const form = document.querySelector('.transaction-form');
+    form?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleCancelEdit = () => {
@@ -111,8 +116,12 @@ const loadTransactions = async () => {
     e.preventDefault();
     setError("");
     setSuccessMessage("");
+    setUpdating(true);
 
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      setUpdating(false);
+      return;
+    }
 
     const transactionId = editingTransaction._id || editingTransaction.id;
     console.log('Update - ID:', transactionId, 'Payload:', {type, category: category.trim(), amount: parseFloat(amount)});
@@ -135,6 +144,8 @@ const loadTransactions = async () => {
       console.error('Update failed:', err.response?.status, err.response?.data);
       if (err.response?.status === 401) handleLogout();
       else setError(err.response?.data?.message || "Failed to update transaction");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -319,8 +330,10 @@ const formatAmount = (amount) =>
           </select>
           {editingTransaction ? (
             <>
-              <button type="submit" className="update-button">Update</button>
-              <button type="button" className="cancel-button" onClick={handleCancelEdit}>
+              <button type="submit" className="update-button" disabled={updating}>
+                {updating ? 'Updating...' : 'Update'}
+              </button>
+              <button type="button" className="cancel-button" onClick={handleCancelEdit} disabled={updating}>
                 Cancel
               </button>
             </>

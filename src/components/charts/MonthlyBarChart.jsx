@@ -2,7 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cart
 
 export default function MonthlyBarChart({ transactions }) {
   // Group transactions by month
-  const monthlyData = transactions.reduce((acc, t) => {
+  const monthlyData = (transactions || []).reduce((acc, t) => {
     const date = t.date || t.createdAt ? new Date(t.date || t.createdAt) : new Date();
     // Fix potential future dates
     const safeDate = new Date(Math.min(date.getTime(), Date.now()));
