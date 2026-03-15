@@ -4,17 +4,23 @@ const COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6'
 
 export default function ExpensePieChart({ transactions }) {
   // Filter only expenses and group by category
-  const expenses = transactions.filter(t => t.type === 'expense');
+  console.log('Pie chart - total transactions:', transactions?.length || 0);
+  const expenses = (transactions || []).filter(t => 
+    t.type?.toLowerCase() === 'expense' || 
+    t.type?.toLowerCase() === 'expenses'
+  );
+  console.log('Pie chart - expense count:', expenses.length);
   
   const categoryData = expenses.reduce((acc, t) => {
     const existing = acc.find(item => item.name === t.category);
+    const safeAmount = Number(t.amount) || 0;
     if (existing) {
-      existing.value += t.amount || 0;
+      existing.value += safeAmount;
     } else {
-      acc.push({ name: t.category, value: t.amount || 0 });
+      acc.push({ name: t.category, value: safeAmount });
     }
     return acc;
-  }, []);
+  }, []).filter(item => item.value > 0);
 
   if (categoryData.length === 0) {
     return (

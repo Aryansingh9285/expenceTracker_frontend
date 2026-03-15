@@ -39,7 +39,13 @@ const Dashboard = () => {
 const loadTransactions = async () => {
     try {
       const res = await api.get("/transactions");
-      setTransactions(res.data || []);
+      console.log('Raw API response:', res.data);
+      
+      // Backend returns {success: true, transactions: [...]}
+      const transactionsData = res.data?.transactions || res.data?.data || (Array.isArray(res.data) ? res.data : []);
+      
+      console.log('Fixed transactions count:', transactionsData.length, transactionsData.slice(0,2));
+      setTransactions(transactionsData);
       setError("");
     } catch (err) {
       if (err.response?.status === 401) {
@@ -108,12 +114,16 @@ const loadTransactions = async () => {
 
     if (!validateForm()) return;
 
+    const transactionId = editingTransaction._id || editingTransaction.id;
+    console.log('Update - ID:', transactionId, 'Payload:', {type, category: category.trim(), amount: parseFloat(amount)});
+
     try {
-      await api.put(`/transactions/${editingTransaction._id}`, {
+      const response = await api.put(`/transactions/${transactionId}`, {
         type,
         category: category.trim(),
         amount: parseFloat(amount),
       });
+      console.log('Update success:', response.data);
       setAmount("");
       setCategory("");
       setType("expense");
@@ -122,6 +132,7 @@ const loadTransactions = async () => {
       setTimeout(() => setSuccessMessage(""), 3000);
       loadTransactions();
     } catch (err) {
+      console.error('Update failed:', err.response?.status, err.response?.data);
       if (err.response?.status === 401) handleLogout();
       else setError(err.response?.data?.message || "Failed to update transaction");
     }
@@ -129,14 +140,17 @@ const loadTransactions = async () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
+    console.log('Delete - ID:', id);
     try {
-      await api.delete(`/transactions/${id}`);
+      const response = await api.delete(`/transactions/${id}`);
+      console.log('Delete success:', response.data);
       setSuccessMessage("Transaction deleted!");
       setTimeout(() => setSuccessMessage(""), 3000);
       loadTransactions();
     } catch (err) {
+      console.error('Delete failed:', err.response?.status, err.response?.data);
       if (err.response?.status === 401) handleLogout();
-      else setError("Failed to delete");
+      else setError("Failed to delete: " + (err.response?.data?.message || err.message));
     }
   };
 
@@ -226,7 +240,7 @@ const formatAmount = (amount) =>
   const handlePrint = () => window.print();
 
   const getFilteredTransactions = () => {
-    const filtered = transactions.filter(t => {
+    const filtered = (transactions ?? []).filter(t => {
       if (filterTab === 'all') return true;
       return t.type === filterTab;
     });
@@ -240,7 +254,7 @@ const formatAmount = (amount) =>
           <h1>FinTrack Dashboard</h1>
         </div>
         <div className="user-greeting">
-          {transactions.length > 0 && transactions[0].userId?.name 
+{(transactions ?? []).length > 0 && transactions[0]?.userId?.name 
             ? getGreeting(transactions[0].userId.name) 
             : userName ? getGreeting(userName) : 'Loading...'}
         </div>
@@ -374,7 +388,7 @@ const formatAmount = (amount) =>
         <div className="report-transactions">
           <h4>Recent Transactions ({transactions.length})</h4>
           <div className="trans-list">
-            {transactions.slice(0, 10).map((t) => (
+{(transactions ?? []).slice(0, 10).map((t) => (
               <div key={t._id} className={`trans-row ${t.type}`}>
                 <span>{t.type.toUpperCase()}</span>
                 <span>{t.category}</span>
@@ -453,13 +467,13 @@ const formatAmount = (amount) =>
                   >
                     <MdEdit />
                   </button>
-                  <button
-                    className="action-btn delete"
-                    onClick={() => handleDelete(t._id)}
-                    title="Delete"
-                  >
-                    <MdDelete />
-                  </button>
+                <button
+                  className="action-btn delete"
+                  onClick={() => handleDelete(t._id || t.id)}
+                  title="Delete"
+                >
+                  <MdDelete />
+                </button>
                 </div>
               </div>
             ))}
