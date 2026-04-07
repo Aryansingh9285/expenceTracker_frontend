@@ -3,15 +3,15 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import ExpensePieChart from "../components/charts/ExpensePieChart";
 import MonthlyBarChart from "../components/charts/MonthlyBarChart";
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
-import { MdEdit, MdDelete } from 'react-icons/md';
+import ExpenseWarning from "../components/ExpenseWarning";
+import { MdEdit, MdDelete, MdWarning, MdDownload } from 'react-icons/md';
 import { FaSignOutAlt } from 'react-icons/fa';
-import "./Dashboard.css";
 
 const Dashboard = () => {
   const [transactions, setTransactions] = useState([]);
   const [userName, setUserName] = useState(localStorage.getItem("userName") || null);
+  const [userSalary] = useState(localStorage.getItem("userSalary") ? parseFloat(localStorage.getItem("userSalary")) : 0);
+  const [showWarning, setShowWarning] = useState(true);
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [type, setType] = useState("expense");
@@ -21,6 +21,9 @@ const Dashboard = () => {
   const [successMessage, setSuccessMessage] = useState("");
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [filterTab, setFilterTab] = useState('all');
+  const [searchInput, setSearchInput] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(5);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -28,6 +31,15 @@ const Dashboard = () => {
     localStorage.removeItem("userName");
     navigate("/");
   };
+
+  // const handleSalarySave = (salary) => {
+  //   if (salary > 0) {
+  //     localStorage.setItem("userSalary", salary);
+  //     setUserSalary(salary);
+  //     setSuccessMessage("Monthly salary saved successfully!");
+  //     setTimeout(() => setSuccessMessage(""), 3000);
+  //   }
+  // };
 
   const getGreeting = (name) => {
     const hour = new Date().getHours();
@@ -229,33 +241,380 @@ const formatAmount = (amount) =>
     minimumFractionDigits: 2,
   }).format(amount);
 
-  const generatePDF = async () => {
-    const reportElement = document.getElementById('report-content');
-    if (!reportElement) return;
 
-    const canvas = await html2canvas(reportElement, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-    });
 
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgWidth = 210;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-    pdf.save(`fintrack-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  const handleDownloadAllData = () => {
+    const reportWindow = window.open('', '_blank');
+    
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' });
+    const timeStr = now.toLocaleTimeString('en-IN');
+    const monthStr = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+    
+    // Create comprehensive HTML report
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FinTrack Complete Report</title>
+        <style>
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            padding: 40px;
+            line-height: 1.6;
+          }
+          
+          .container {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+          }
+          
+          .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+          }
+          
+          .header h1 {
+            color: #1e293b;
+            font-size: 32px;
+            margin-bottom: 10px;
+          }
+          
+          .header-info {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-top: 20px;
+            text-align: center;
+          }
+          
+          .info-item {
+            padding: 15px;
+            background: #f1f5f9;
+            border-radius: 8px;
+          }
+          
+          .info-label {
+            color: #64748b;
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-bottom: 5px;
+          }
+          
+          .info-value {
+            color: #1e293b;
+            font-size: 16px;
+            font-weight: 700;
+          }
+          
+          .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 40px;
+          }
+          
+          .summary-card {
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+          }
+          
+          .summary-card.income {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(34, 197, 94, 0.1));
+            border: 2px solid #10b981;
+          }
+          
+          .summary-card.expense {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(248, 113, 113, 0.1));
+            border: 2px solid #ef4444;
+          }
+          
+          .summary-card.balance {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(96, 165, 250, 0.1));
+            border: 2px solid #3b82f6;
+          }
+          
+          .summary-card h3 {
+            color: #64748b;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            font-weight: 600;
+          }
+          
+          .summary-card .value {
+            font-size: 24px;
+            font-weight: 700;
+          }
+          
+          .summary-card.income .value {
+            color: #10b981;
+          }
+          
+          .summary-card.expense .value {
+            color: #ef4444;
+          }
+          
+          .summary-card.balance .value {
+            color: #3b82f6;
+          }
+          
+          h2 {
+            color: #1e293b;
+            font-size: 20px;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+          }
+          
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background: white;
+          }
+          
+          th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          
+          td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+          }
+          
+          tr:nth-child(even) {
+            background: #f8fafc;
+          }
+          
+          tr:hover {
+            background: #f1f5f9;
+          }
+          
+          .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+          
+          .type-badge.income {
+            background: #d1fae5;
+            color: #065f46;
+          }
+          
+          .type-badge.expense {
+            background: #fee2e2;
+            color: #7f1d1d;
+          }
+          
+          .amount-cell {
+            font-weight: 600;
+            text-align: right;
+          }
+          
+          .amount-cell.income {
+            color: #10b981;
+          }
+          
+          .amount-cell.expense {
+            color: #ef4444;
+          }
+          
+          .print-button {
+            display: flex;
+            justify-content: center;
+            margin: 40px 0 20px 0;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+          }
+          
+          .print-btn {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+          }
+          
+          .print-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+          }
+          
+          .print-btn:active {
+            transform: translateY(0);
+          }
+          
+          @media print {
+            body {
+              padding: 0;
+              background: white;
+            }
+            
+            .container {
+              box-shadow: none;
+              padding: 20px;
+            }
+            
+            .print-button {
+              display: none;
+            }
+          }
+          
+          @media (max-width: 768px) {
+            .header-info {
+              grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .summary-cards {
+              grid-template-columns: 1fr;
+            }
+            
+            table {
+              font-size: 12px;
+            }
+            
+            th, td {
+              padding: 10px;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📊 FinTrack Complete Report</h1>
+            <div class="header-info">
+              <div class="info-item">
+                <div class="info-label">Date</div>
+                <div class="info-value">${dateStr}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Time</div>
+                <div class="info-value">${timeStr}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Month</div>
+                <div class="info-value">${monthStr}</div>
+              </div>
+              <div class="info-item">
+                <div class="info-label">Total Transactions</div>
+                <div class="info-value">${transactions.length}</div>
+              </div>
+            </div>
+          </div>
+          
+          <h2>Summary</h2>
+          <div class="summary-cards">
+            <div class="summary-card income">
+              <h3>Total Income</h3>
+              <div class="value">₹${formatAmount(totalIncome)}</div>
+            </div>
+            <div class="summary-card expense">
+              <h3>Total Expense</h3>
+              <div class="value">₹${formatAmount(totalExpense)}</div>
+            </div>
+            <div class="summary-card balance">
+              <h3>Net Balance</h3>
+              <div class="value">₹${formatAmount(balance)}</div>
+            </div>
+          </div>
+          
+          <h2>All Transactions</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Category</th>
+                <th>Description</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${transactions.map(t => `
+                <tr>
+                  <td>${new Date(t.date || t.createdAt).toLocaleDateString('en-IN')}</td>
+                  <td><span class="type-badge ${t.type}">${t.type.toUpperCase()}</span></td>
+                  <td>${t.category}</td>
+                  <td>${t.notes || '-'}</td>
+                  <td class="amount-cell ${t.type}">${t.type === 'income' ? '+' : '-'}₹${formatAmount(t.amount)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          
+          <div class="print-button">
+            <button class="print-btn" onclick="window.print()">🖨️ Print Report</button>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    reportWindow.document.write(htmlContent);
+    reportWindow.document.close();
   };
-
-  const handlePrint = () => window.print();
 
   const getFilteredTransactions = () => {
     const filtered = (transactions ?? []).filter(t => {
-      if (filterTab === 'all') return true;
-      return t.type === filterTab;
+      if (filterTab !== 'all' && t.type !== filterTab) return false;
+      if (searchInput.trim()) {
+        const search = searchInput.toLowerCase();
+        const matchesCategory = t.category?.toLowerCase().includes(search);
+        const matchesNotes = t.notes?.toLowerCase().includes(search);
+        const matchesType = t.type?.toLowerCase().includes(search);
+        const matchesAmount = formatAmount(t.amount)?.includes(search);
+        return matchesCategory || matchesNotes || matchesType || matchesAmount;
+      }
+      return true;
     });
-    return filtered.slice(0, 10);
+    return filtered;
+  };
+
+  const getPaginatedTransactions = () => {
+    const filtered = getFilteredTransactions();
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filtered.slice(startIndex, endIndex);
+  };
+
+  const getTotalPages = () => {
+    const filtered = getFilteredTransactions();
+    return Math.ceil(filtered.length / itemsPerPage);
   };
 
   return (
@@ -283,6 +642,14 @@ const formatAmount = (amount) =>
 
       {successMessage && (
         <div className="success-message">{successMessage}</div>
+      )}
+
+      {showWarning && totalIncome > 0 && (
+        <ExpenseWarning 
+          totalExpense={totalExpense} 
+          totalIncome={totalIncome}
+          onClose={() => setShowWarning(false)}
+        />
       )}
 
       <div className="summary-cards">
@@ -328,6 +695,7 @@ const formatAmount = (amount) =>
             <option value="expense">Expense</option>
             <option value="income">Income</option>
           </select>
+          
           {editingTransaction ? (
             <>
               <button type="submit" className="update-button" disabled={updating}>
@@ -405,43 +773,62 @@ const formatAmount = (amount) =>
               <div key={t._id} className={`trans-row ${t.type}`}>
                 <span>{t.type.toUpperCase()}</span>
                 <span>{t.category}</span>
-                <span>{t.type === "income" ? "+" : "-"}₹{formatAmount(t.amount)}</span>
+                <span style={{color: t.type === "income" ? "blue" : "red"}}>{t.type === "income" ? "+" : "-"}₹{formatAmount(t.amount)}</span>
               </div>
             ))}
           </div>
         </div>
         <div className="report-buttons">
-          <button className="report-btn download" onClick={generatePDF}>
-            Download PDF
-          </button>
-          <button className="report-btn print" onClick={handlePrint}>
-            Print
+          <button className="report-btn download" onClick={handleDownloadAllData}>
+            <MdDownload size={20} />
+            Download All Expense Records
           </button>
         </div>
       </div>
 
       <div className="transactions-section">
         <div className="transactions-header">
-          <h3>Recent Transactions</h3>
-          <div className="filter-tabs">
-            <button 
-              className={`tab ${filterTab === 'all' ? 'active' : ''}`}
-              onClick={() => setFilterTab('all')}
-            >
-              All
-            </button>
-            <button 
-              className={`tab ${filterTab === 'income' ? 'active' : ''}`}
-              onClick={() => setFilterTab('income')}
-            >
-              Income
-            </button>
-            <button 
-              className={`tab ${filterTab === 'expense' ? 'active' : ''}`}
-              onClick={() => setFilterTab('expense')}
-            >
-              Expense
-            </button>
+          <h3>Recent Transactions ({getFilteredTransactions().length})</h3>
+          <div className="search-and-filter">
+            <input
+              type="text"
+              placeholder="Search by category, amount, or type..."
+              className="search-input"
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+            <div className="filter-tabs">
+              <button 
+                className={`tab ${filterTab === 'all' ? 'active' : ''}`}
+                onClick={() => {
+                  setFilterTab('all');
+                  setCurrentPage(1);
+                }}
+              >
+                All
+              </button>
+              <button 
+                className={`tab ${filterTab === 'income' ? 'active' : ''}`}
+                onClick={() => {
+                  setFilterTab('income');
+                  setCurrentPage(1);
+                }}
+              >
+                Income
+              </button>
+              <button 
+                className={`tab ${filterTab === 'expense' ? 'active' : ''}`}
+                onClick={() => {
+                  setFilterTab('expense');
+                  setCurrentPage(1);
+                }}
+              >
+                Expense
+              </button>
+            </div>
           </div>
         </div>
         {loading ? (
@@ -454,43 +841,69 @@ const formatAmount = (amount) =>
             <div className="empty-icon">📊</div>
             <p>No transactions yet. Add your first transaction!</p>
           </div>
-        ) : (
-          <div className="transactions-grid">
-            {getFilteredTransactions().map((t, index) => (
-              <div
-                key={t._id}
-                className={`transaction-card ${t.type}`}
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="transaction-icon">
-                  {t.type === 'income' ? '💰' : '💸'}
-                </div>
-                <div className="transaction-info">
-                  <span className="category">{t.category}</span>
-                  <span className="type">{t.type.toUpperCase()}</span>
-                </div>
-                <div className="transaction-amount">
-                  {t.type === "income" ? "+" : "-"}₹{formatAmount(t.amount)}
-                </div>
-                <div className="transaction-actions">
-                  <button
-                    className="action-btn edit"
-                    onClick={() => handleEdit(t)}
-                    title="Edit"
-                  >
-                    <MdEdit />
-                  </button>
-                <button
-                  className="action-btn delete"
-                  onClick={() => handleDelete(t._id || t.id)}
-                  title="Delete"
-                >
-                  <MdDelete />
-                </button>
-                </div>
-              </div>
-            ))}
+        ) : getFilteredTransactions().length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-icon">🔍</div>
+            <p>No transactions match your search.</p>
           </div>
+        ) : (
+          <>
+            <div className="transactions-grid">
+              {getPaginatedTransactions().map((t, index) => (
+                <div
+                  key={t._id}
+                  className={`transaction-card ${t.type}`}
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="transaction-icon">
+                    {t.type === 'income' ? '💰' : '💸'}
+                  </div>
+                  <div className="transaction-info">
+                    <span className="category">{t.category}</span>
+                    <span className="type">{t.type.toUpperCase()}</span>
+                  </div>
+                  <div className="transaction-amount" style={{color:t.type === "income" ? '#10b981' : '#ef4444'}}>
+                    {t.type === "income" ? "+" : "-"}₹{formatAmount(t.amount)}
+                  </div>
+                  <div className="transaction-actions">
+                    <button
+                      className="action-btn edit"
+                      onClick={() => handleEdit(t)}
+                      title="Edit"
+                    >
+                      <MdEdit />
+                    </button>
+                    <button
+                      className="action-btn delete"
+                      onClick={() => handleDelete(t._id || t.id)}
+                      title="Delete"
+                    >
+                      <MdDelete />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="pagination-controls">
+              <button
+                className="pagination-btn"
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                ← Previous
+              </button>
+              <span className="page-info">
+                Page {currentPage} of {getTotalPages()}
+              </span>
+              <button
+                className="pagination-btn"
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, getTotalPages()))}
+                disabled={currentPage === getTotalPages()}
+              >
+                Next →
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

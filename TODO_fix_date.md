@@ -1,3 +1,0 @@
-- [x] 3. Test charts/transaction display (robust date formatter with raw API fallback + logging) ✅
-- [x] 4. Frontend: Replaced date display with type display ✅
-- [ ] Backend: standardize `createdAt: new Date()`

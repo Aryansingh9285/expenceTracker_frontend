@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../api/axios";
-import "./Register.css";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -80,10 +79,10 @@ export default function Register() {
   };
 
   return (
-    <div className="register-container">
-      <div className="register-card">
+    <div className="auth-container">
+      <div className="auth-card">
         <h2>Create Account</h2>
-        <p className="register-subtitle">Join FinTrack today</p>
+        <p className="auth-subtitle">Join FinTrack today</p>
 
         {error && (
           <div className="error-message">
@@ -149,12 +148,12 @@ export default function Register() {
           </button>
         </form>
 
-        <p className="login-link">
+        <div className="auth-link">
           Already have an account? <Link to="/login">Sign In</Link>
-        </p>
-        <p className="landing-link">
+        </div>
+        <div className="auth-link">
           <Link to="/">Back to Home</Link>
-        </p>
+        </div>
       </div>
     </div>
   );
